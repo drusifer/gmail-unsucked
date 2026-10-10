@@ -127,3 +127,9 @@ Evaluated and not adopted:
 - Never store anything sensitive in metadata beyond the user's chosen name.
 - Spike (optional, ~10 lines): have `selfTest` dump raw filter JSON keys to confirm no undocumented fields.
 
+## 9. Sprint 3 amendments (2026-10-10)
+- **D5 extended (E9):** the filter list is now cached too, chunked across `CacheService` keys (value limit 100 KB; count written last, removed first), 60 s TTL, invalidated by every create and delete made through the add-on. Only edits made outside the add-on can be stale, for up to 60 s.
+- **List layout (E4, E10-E12):** one Card, one section, one `DecoratedText` per filter (tap opens the detail card; single end button is an Edit icon). Growing list: batch 10, cap 90 filters (platform limit 100 widgets per section). See docs/SPRINT3_UX.md.
+- **Search:** Enter or a small icon button; on-change action behind `SEARCH_ON_COMMIT`. No timer or per-keystroke filtering (decided).
+- **Not built:** the overflow menu (developer preview for add-ons; `selfTest` reports whether the method exists).
+

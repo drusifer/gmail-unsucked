@@ -19,42 +19,28 @@ Agents **must** use this for every message posted to CHAT.md:
 
 ---
 
----
-[<small>2026-10-10 13:17:46</small>] [**Trin**]->[**all**] *qa verify*:
- Live re-verify passed: selfTest incl. real-filter sweep + F6 friendly duplicate-save message. B1 closed, B2 verified. Debt left: C2, F8, forwarding scope, D5.
+> **Previous sprint archived:** `agents/chat_archive/CHAT_SPRINT_3.md` (2026-10-10 14:04:02) — Sprint 3 (UX enhancements) redesigned the filter list as one Card with one DecoratedText row per filter, label color dots, truncation, a detail card, small icon buttons, Enter-to-search and a growing list capped at 90, plus a chunked filter cache and editor polish. Built autonomously then reviewed; 75 tests and typecheck green; nothing pushed. Live checks (colors, dark mode, Enter behavior) are left for the user.
 
 ---
-[<small>2026-10-10 13:18:20</small>] [**Trin**]->[**all**] *qa verify*:
- F8 live-verified by user. Debt left: C2 (search/page persistence), forwarding scope, D5.
 
 ---
-[<small>2026-10-10 13:21:16</small>] [**Trin**]->[**all**] *qa verify*:
- Forwarding live-verified: works with gmail.settings.basic, sharing scope NOT needed (ARCH s3 spike resolved). Debt left: C2, D5.
+[<small>2026-10-10 17:25:58</small>] [**Mouse**]->[**User**] *init*:
+ Bob Protocol initialized. Chat read, state loaded: Sprints 1-3 closed, 75 tests + tsc green, Sprint 3 uncommitted/unpushed. Ready for next sprint or task.
 
 ---
-[<small>2026-10-10 13:23:19</small>] [**make**]->[**all**] *build*:
- Build PASSED | make check | /var/home/drusifer/Projects/GmailUnSucked/build/build.out
-ℹ tests 60
-ℹ suites 0
-ℹ pass 60
-ℹ fail 0
-ℹ cancelled 0
-ℹ skipped 0
+[<small>2026-10-10 17:31:47</small>] [**make**]->[**all**] *build*:
+ Build PASSED | make push | /var/home/drusifer/Projects/GmailUnSucked/build/build.out
 ℹ todo 0
-ℹ duration_ms 133.201503
+ℹ duration_ms 301.442623
+clasp push
+Pushed 6 files at 5:31:47 PM.
+└─ appsscript.json
+└─ cards.js
+└─ filters.js
+└─ format.js
+└─ gmail_api.js
+└─ selfTest.js
 
 ---
-[<small>2026-10-10 13:23:19</small>] [**Neo**]->[**User**] *swe handoff*:
- D5 implemented at gmail_api.js: 60s per-user CacheService for labels+forwarding, invalidated on create, errors fall back to API, filters never cached. 8 new tests (60 total) + tsc green; selfTest checks cache live. @User re-push + rerun selfTest
-
----
-[<small>2026-10-10 13:25:52</small>] [**Trin**]->[**Cypher**] *qa verify*:
- C2 live-verified. M1 acceptance fully live-verified; only D5 cache live selfTest re-run pending.
-
----
-[<small>2026-10-10 13:28:25</small>] [**Trin**]->[**all**] *qa verify*:
- selfTest 51/51 live PASS: 9 real filters x Edit/Duplicate/ConfirmDelete, D5 cache, F6, create/delete/undo, cleanup. M1 fully verified; no carried test debt. Backlog open.
-
----
-[<small>2026-10-10 13:35:41</small>] [**Oracle**]->[**User**] *ora record*:
- README.md (dev/setup/testing/limits) and docs/USER_GUIDE.md (end-user) written; uncommitted. @User review, say when to commit+push
+[<small>2026-10-10 17:43:05</small>] [**Trin**]->[**User**] *qa*:
+ Sprint 3 UX live checks done: selfTest 62/62, icons+hint text moved to #757575 (contrast verified), U6 verified by user. Uncommitted.

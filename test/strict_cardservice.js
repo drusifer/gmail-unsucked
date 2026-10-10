@@ -33,7 +33,8 @@ const setProp = (k, check) => (self, v) => { check(v, k); self.props[k] = v; };
 const str = (label) => (v) => { if (!isStr(v)) fail(`${label} expects a string, got ${typeof v}: ${String(v)}`); };
 const bool = (label) => (v) => { if (typeof v !== 'boolean') fail(`${label} expects a boolean, got ${typeof v}: ${String(v)}`); };
 
-const WIDGET_KINDS = ['TextParagraph', 'TextInput', 'SelectionInput', 'DecoratedText', 'ButtonSet', 'TextButton', 'Image', 'Divider'];
+const WIDGET_KINDS = ['TextParagraph', 'TextInput', 'SelectionInput', 'DecoratedText', 'ButtonSet', 'TextButton', 'ImageButton', 'Image', 'Divider'];
+const BUTTON_KINDS = ['TextButton', 'ImageButton'];
 
 const newCardService = () => {
   const newAction = () => make('Action', {
@@ -53,9 +54,26 @@ const newCardService = () => {
     setDisabled: setProp('disabled', bool('TextButton.setDisabled')),
   });
 
+  const checkImageButton = (b) => {
+    if (b.__kind !== 'ImageButton') return;
+    if (!b.props.altText) fail('ImageButton requires setAltText (accessibility, required by the platform)');
+    if (!b.props.iconUrl && !b.props.icon) fail('ImageButton requires setIconUrl or setIcon');
+    if (!b.props.action) fail('ImageButton has no click action');
+  };
+
+  const newImageButton = () => make('ImageButton', {
+    setAltText: setProp('altText', str('ImageButton.setAltText')),
+    setIconUrl: setProp('iconUrl', str('ImageButton.setIconUrl')),
+    setIcon: (self, v) => { self.props.icon = v; },
+    setOnClickAction: (self, a) => { if (!a || a.__kind !== 'Action') fail('ImageButton.setOnClickAction expects an Action'); self.props.action = a; },
+  });
+
+  const newDivider = () => make('Divider', {});
+
   const newButtonSet = () => make('ButtonSet', {
     addButton: (self, b) => {
-      if (!b || b.__kind !== 'TextButton') fail('ButtonSet.addButton expects a TextButton');
+      if (!b || !BUTTON_KINDS.includes(b.__kind)) fail('ButtonSet.addButton expects a TextButton or ImageButton');
+      checkImageButton(b);
       (self.props.buttons = self.props.buttons || []).push(b);
     },
   });
@@ -67,6 +85,7 @@ const newCardService = () => {
     setTitle: setProp('title', str('TextInput.setTitle')),
     setValue: setProp('value', str('TextInput.setValue')),
     setHint: setProp('hint', str('TextInput.setHint')),
+    setOnChangeAction: (self, a) => { if (!a || a.__kind !== 'Action') fail('TextInput.setOnChangeAction expects an Action'); self.props.onChange = a; },
   });
 
   const newSelectionInput = () => make('SelectionInput', {
@@ -86,10 +105,25 @@ const newCardService = () => {
     setWrapText: setProp('wrap', bool('DecoratedText.setWrapText')),
     setTopLabel: setProp('topLabel', str('DecoratedText.setTopLabel')),
     setBottomLabel: setProp('bottomLabel', str('DecoratedText.setBottomLabel')),
+    setOnClickAction: (self, a) => {
+      if (!a || a.__kind !== 'Action') fail('DecoratedText.setOnClickAction expects an Action');
+      self.props.onClick = a;
+    },
+    setButton: (self, b) => {
+      if (!b || !BUTTON_KINDS.includes(b.__kind)) fail('DecoratedText.setButton expects a Button');
+      if (self.props.button) fail('DecoratedText allows only one button, switch or icon');
+      checkImageButton(b);
+      self.props.button = b;
+    },
   });
 
   const newCardSection = () => make('CardSection', {
     setHeader: setProp('header', str('CardSection.setHeader')),
+    setCollapsible: setProp('collapsible', bool('CardSection.setCollapsible')),
+    setNumUncollapsibleWidgets: (self, n) => {
+      if (!Number.isInteger(n) || n < 0) fail('CardSection.setNumUncollapsibleWidgets expects a non-negative integer');
+      self.props.numUncollapsible = n;
+    },
     addWidget: (self, w) => {
       if (!w || !WIDGET_KINDS.includes(w.__kind)) fail(`CardSection.addWidget expects a widget, got ${w && w.__kind}`);
       (self.props.widgets = self.props.widgets || []).push(w);
@@ -105,13 +139,21 @@ const newCardService = () => {
         if (!s || s.__kind !== 'CardSection') fail(`CardBuilder.addSection expects a CardSection, got ${s && s.__kind}`);
         // Platform rule we believe holds: a section must carry at least one widget.
         if (!s.props.widgets || s.props.widgets.length === 0) fail('CardBuilder.addSection: section has no widgets');
+        // Documented limit: 100 widgets per section.
+        if (s.props.widgets.length > 100) fail(`CardBuilder.addSection: ${s.props.widgets.length} widgets exceeds the 100 per section limit`);
+        if (s.props.numUncollapsible > s.props.widgets.length) fail('numUncollapsibleWidgets exceeds widget count');
+        if (self.props.sections && self.props.sections.length >= 100) fail('Card has more than 100 sections');
         (self.props.sections = self.props.sections || []).push(s);
       },
     });
     b.build = () => {
       if (!b.props.sections || b.props.sections.length === 0) fail('Card must have at least one section');
       b.__built = true;
-      return { __kind: 'Card', __built: true, props: b.props, printJson: () => JSON.stringify({ header: {}, sections: [], kind: 'card', title: (b.props.header && b.props.header.props.title) || '' }) };
+      return { __kind: 'Card', __built: true, props: b.props, printJson: () => JSON.stringify({
+        header: {}, kind: 'card', title: (b.props.header && b.props.header.props.title) || '',
+        // Widget props (text, iconUrl, ...) are serialized like the real printJson so tests can assert on rendered output.
+        sections: (b.props.sections || []).map((sec) => ({ widgets: (sec.props.widgets || []).map((w) => w.props) })),
+      }, (k, v) => (typeof v === 'function' || (typeof k === 'string' && k.indexOf('__') === 0) ? undefined : v)) };
     };
     return b;
   };
@@ -148,7 +190,7 @@ const newCardService = () => {
 
   return Object.assign({
     newAction, newTextButton, newButtonSet, newTextParagraph, newTextInput, newSelectionInput,
-    newDecoratedText, newCardSection, newCardHeader, newCardBuilder, newNotification, newNavigation,
+    newDecoratedText, newImageButton, newDivider, newCardSection, newCardHeader, newCardBuilder, newNotification, newNavigation,
     newActionResponseBuilder,
   }, ENUMS);
 };

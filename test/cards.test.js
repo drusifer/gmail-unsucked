@@ -63,7 +63,7 @@ test('homepage builds a list card', () => {
   const env = makeEnv(fakeGmail());
   const card = env.run('buildHomepage({})');
   assert.ok(card.built);
-  assert.ok(env.log.texts.some((t) => /Showing 1-1 of 1 filters/.test(t)));
+  assert.ok(env.log.texts.some((t) => /Showing 1 of 1 filters/.test(t)));
 });
 
 test('list with no filters shows the empty state', () => {
@@ -131,7 +131,12 @@ test('C2: list context is carried in action parameters of list-page buttons', ()
   const env = makeEnv(fakeGmail());
   env.run(`listCard_({ q: 'work', page: 0 })`);
   assert.ok(env.log.actions.includes('onEditFilter'));
+  assert.ok(env.log.actions.includes('onOpenFilter'));
+  // Delete lives on the detail card, reached with the same list context.
+  env.log.actions.length = 0;
+  env.run(`onOpenFilter({ parameters: { id: 'f1', q: 'work', page: '0' } })`);
   assert.ok(env.log.actions.includes('onConfirmDelete'));
+  assert.ok(env.log.actions.includes('onDuplicateFilter'));
 });
 
 test('contextual trigger without a readable message degrades gracefully', () => {

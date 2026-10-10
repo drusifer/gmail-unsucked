@@ -12,11 +12,15 @@ const FilterService = (function () {
     const loadLabels = () => {
       const labels = api.listLabels();
       const labelsById = {};
-      labels.forEach((l) => { labelsById[l.id] = l.name; });
+      const labelColors = {};
+      labels.forEach((l) => {
+        labelsById[l.id] = l.name;
+        if (l.color && l.color.backgroundColor) labelColors[l.id] = l.color.backgroundColor;
+      });
       const userLabels = labels
         .filter((l) => l.type === 'user')
         .sort((a, b) => a.name.localeCompare(b.name));
-      return { labelsById, userLabels };
+      return { labelsById, labelColors, userLabels };
     };
 
     const verifiedAddresses = () =>
@@ -28,7 +32,7 @@ const FilterService = (function () {
     /** Data for a list page: sorted, searched, paged, and rendered. */
     const listView = (opts) => {
       const o = opts || {};
-      const { labelsById } = loadLabels();
+      const { labelsById, labelColors } = loadLabels();
       const all = api.listFilters();
       const matched = fmt.searchFilters(fmt.sortFilters(all), o.q, labelsById);
       const pg = fmt.paginate(matched, o.page, o.pageSize || 10);
@@ -39,7 +43,9 @@ const FilterService = (function () {
         pages: pg.pages,
         start: pg.start,
         end: pg.end,
-        items: pg.items.map((f) => ({ id: f.id, text: fmt.renderFilter(f, labelsById), filter: f })),
+        items: pg.items.map((f) => ({
+          id: f.id, text: fmt.renderFilter(f, labelsById), filter: f, model: fmt.cardModel(f, labelsById, labelColors),
+        })),
       };
     };
 
@@ -55,6 +61,14 @@ const FilterService = (function () {
     const getForm = (id) => {
       const f = findFilter(id);
       return f ? Object.assign({ status: 'ok', filter: f }, fmt.filterToForm(f)) : { status: 'not_found' };
+    };
+
+    /** Presentation model for the detail card (full values, label colors). */
+    const getModel = (id) => {
+      const f = findFilter(id);
+      if (!f) return { status: 'not_found' };
+      const { labelsById, labelColors } = loadLabels();
+      return { status: 'ok', filter: f, model: fmt.cardModel(f, labelsById, labelColors, { maxLen: 400 }), text: fmt.renderFilter(f, labelsById) };
     };
 
     const validate = (form, extras, keepForward) =>
@@ -147,7 +161,7 @@ const FilterService = (function () {
     const render = (filter) => fmt.renderFilter(filter, loadLabels().labelsById);
 
     return {
-      listView, formOptions, getForm, createFilter, editFilter, deleteFilter,
+      listView, formOptions, getForm, getModel, createFilter, editFilter, deleteFilter,
       undoDelete, retryDeleteOld, prefillFromMessage, render,
     };
   };

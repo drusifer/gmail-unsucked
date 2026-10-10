@@ -139,3 +139,52 @@ test('extractEmail', () => {
   assert.strictEqual(F.extractEmail('Boss Man <boss@x.com>'), 'boss@x.com');
   assert.strictEqual(F.extractEmail(' plain@x.com '), 'plain@x.com');
 });
+
+// ---- Sprint 3: card model (U1-U4) ----
+test('truncate: boundaries at maxLen', () => {
+  const s39 = 'a'.repeat(39); const s40 = 'a'.repeat(40); const s41 = 'a'.repeat(41);
+  assert.strictEqual(F.truncate(s39, 40), s39);
+  assert.strictEqual(F.truncate(s40, 40), s40);
+  assert.strictEqual(F.truncate(s41, 40), `${'a'.repeat(37)}...`); // total length 40
+  assert.strictEqual(F.truncate(undefined, 40), '');
+  assert.strictEqual(F.truncate('  padded  ', 40), 'padded');
+});
+
+test('cardModel: title is first set criterion, others become conditions, labels carry color', () => {
+  const names = { Label_1: 'Work', Label_2: 'Receipts' };
+  const colors = { Label_1: '#16a766' };
+  const m = F.cardModel({
+    id: 'x',
+    criteria: { from: 'boss@x.com', subject: 'Quarterly numbers for the whole department please read carefully', hasAttachment: true, size: 5242880, sizeComparison: 'larger' },
+    action: { addLabelIds: ['Label_1', 'Label_2', 'STARRED'], removeLabelIds: ['INBOX'], forward: 'a@b.com' },
+  }, names, colors, { maxLen: 40 });
+  assert.strictEqual(m.titleName, 'From');
+  assert.strictEqual(m.title, 'boss@x.com');
+  assert.deepStrictEqual(m.labels, [
+    { id: 'Label_1', name: 'Work', color: '#16a766' },
+    { id: 'Label_2', name: 'Receipts', color: null },
+  ]);
+  const subj = m.conditions.find((c) => c.name === 'Subject');
+  assert.strictEqual(subj.value.length, 40);
+  assert.ok(subj.value.endsWith('...'));
+  assert.ok(subj.full.startsWith('Quarterly numbers'));
+  assert.ok(m.conditions.some((c) => c.name === 'Has attachment'));
+  assert.ok(m.conditions.some((c) => c.name === 'Size' && /larger than 5 MB/.test(c.value)));
+  assert.deepStrictEqual(m.actions, ['Star it', 'Skip Inbox', 'Forward to a@b.com']);
+});
+
+test('cardModel: edge cases (no criteria, unknown label id, system label, extras)', () => {
+  const m0 = F.cardModel({ id: 'a', criteria: {}, action: {} }, {}, {}, {});
+  assert.strictEqual(m0.title, '(no conditions)');
+  assert.deepStrictEqual(m0.labels, []);
+  assert.deepStrictEqual(m0.actions, []);
+  const m1 = F.cardModel({ id: 'b', criteria: { to: 'me@x.com' }, action: { addLabelIds: ['Label_9', 'CATEGORY_UPDATES'] } }, {}, {}, {});
+  assert.strictEqual(m1.titleName, 'To');
+  assert.deepStrictEqual(m1.labels, [{ id: 'Label_9', name: 'Label_9', color: null }]);
+  assert.deepStrictEqual(m1.actions, ['Categorize as Updates']);
+});
+
+test('cardModel: bad color values are dropped (never injected into HTML)', () => {
+  const m = F.cardModel({ id: 'c', criteria: { from: 'a@x.com' }, action: { addLabelIds: ['L'] } }, { L: 'N' }, { L: '"><script>' }, {});
+  assert.strictEqual(m.labels[0].color, null);
+});

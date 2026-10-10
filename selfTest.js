@@ -27,6 +27,8 @@ const SelfTest_ = (function () {
   const run = () => {
     const results = [];
     const record = (name, ok, detail) => results.push({ name, ok: !!ok, detail: ok ? '' : String(detail || '') });
+    // INFO lines report platform facts we could not know offline (docs/SPRINT3_UX.md spikes); never a failure.
+    const info = (name, detail) => results.push({ name, ok: true, info: true, detail: String(detail) });
     const check = (name, fn) => {
       try { const d = fn(); record(name, d === undefined || d === true, d); } catch (err) { record(name, false, (err && err.message) || err); }
     };
@@ -37,7 +39,7 @@ const SelfTest_ = (function () {
       if (!allowError && hitErrorCard(r)) return 'fell into the error card';
       return true;
     });
-    const this_ = { onEditFilter, onDuplicateFilter, onConfirmDelete };
+    const this_ = { onOpenFilter, onEditFilter, onDuplicateFilter, onConfirmDelete };
     const mine = (marker) => GmailApi.listFilters().filter((f) => f.criteria && f.criteria.from === marker);
 
     const marker = `${MARKER_PREFIX}${Date.now()}@example.invalid`;
@@ -60,6 +62,33 @@ const SelfTest_ = (function () {
         return true;
       });
 
+      // Spike T19: does labels.list return color for user labels?
+      check('probe: label colors', () => {
+        const user = GmailApi.listLabels().filter((l) => l.type === 'user');
+        const colored = user.filter((l) => l.color && l.color.backgroundColor);
+        info('probe: label colors', `${colored.length} of ${user.length} user labels carry a color` +
+          (colored[0] ? ` (e.g. ${colored[0].color.backgroundColor})` : ''));
+        return true;
+      });
+      // U2/U7 automated: render the real list card and assert on its JSON (no Gmail UI needed).
+      check('render: label dots carry the real label colors; icons are the legible variant', () => {
+        const json = buildHomepage({}).printJson().toLowerCase();
+        const view = svc_().listView({ q: '', page: 0, pageSize: 10 });
+        const missing = [];
+        view.items.forEach((it) => it.model.labels.forEach((l) => {
+          const want = String(l.color || NEUTRAL_DOT).toLowerCase();
+          if (json.indexOf(want) < 0) missing.push(`${l.name} expected ${want}`);
+        }));
+        if (missing.length) return `dot color not rendered: ${missing.join('; ')}`;
+        if (json.indexOf('_black_') >= 0) return 'black icon variant rendered (invisible in dark mode)';
+        if (view.items.length && json.indexOf('_grey600_') < 0) return 'grey600 icons not rendered';
+        return true;
+      });
+      // Spike T19b: widgets the UX sprint relies on.
+      info('probe: CardService.newImageButton', typeof CardService.newImageButton === 'function' ? 'available' : 'MISSING');
+      info('probe: CardService.newOverflowMenu (developer preview)', typeof /** @type {any} */ (CardService).newOverflowMenu === 'function'
+        ? 'method exists (render still needs a live look)' : 'not available: icon button stays');
+
       check('trigger: buildHomepage returns a Card', () => (kindOf(buildHomepage({})) === 'Card') || 'not a Card');
       check('trigger: buildContextualCard degrades to a Card', () =>
         (kindOf(buildContextualCard({ gmail: { messageId: 'does-not-exist' } })) === 'Card') || 'not a Card');
@@ -76,7 +105,7 @@ const SelfTest_ = (function () {
       const real = GmailApi.listFilters().filter((f) => !(f.criteria && String(f.criteria.from || '').indexOf(MARKER_PREFIX) === 0));
       real.slice(0, 100).forEach((f) => {
         const label = `real filter ${f.id}: ${svc_().render(f).slice(0, 60)}`;
-        ['onEditFilter', 'onDuplicateFilter', 'onConfirmDelete'].forEach((fn) => {
+        ['onOpenFilter', 'onEditFilter', 'onDuplicateFilter', 'onConfirmDelete'].forEach((fn) => {
           expectResponse(`${label} -> ${fn}`, () => this_[fn](ev({ id: f.id })));
         });
       });
@@ -124,8 +153,9 @@ const SelfTest_ = (function () {
 const selfTest = () => {
   const results = SelfTest_.run();
   const failed = results.filter((r) => !r.ok);
-  const lines = results.map((r) => `${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : `  -> ${r.detail}`}`);
-  const summary = `${results.length - failed.length}/${results.length} passed`;
+  const lines = results.map((r) => (r.info ? `INFO  ${r.name}: ${r.detail}` : `${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : `  -> ${r.detail}`}`));
+  const counted = results.filter((r) => !r.info);
+  const summary = `${counted.length - failed.length}/${counted.length} passed`;
   Logger.log(`${lines.join('\n')}\n${summary}`);
   if (failed.length) throw new Error(`selfTest FAILED (${summary})\n${lines.filter((l) => l.startsWith('FAIL')).join('\n')}`);
   return summary;

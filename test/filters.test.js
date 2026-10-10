@@ -194,3 +194,25 @@ test('listView: paging 25 filters gives 3 pages and clamps page', () => {
   assert.deepStrictEqual([v.pages, v.items.length, v.start, v.end], [3, 5, 21, 25]);
   assert.strictEqual(svc.listView({ page: 99 }).page, 2);
 });
+
+test('listView items carry a card model with label colors; missing color is null', () => {
+  const { svc } = makeApi({
+    listLabels: () => [
+      { id: 'Label_1', name: 'Work', type: 'user', color: { textColor: '#ffffff', backgroundColor: '#16a766' } },
+      { id: 'Label_2', name: 'Alpha', type: 'user' },
+    ],
+  });
+  const v = svc.listView({ q: '' });
+  const withLabel = v.items.find((i) => i.id === 'f1');
+  assert.deepStrictEqual(withLabel.model.labels, [{ id: 'Label_1', name: 'Work', color: '#16a766' }]);
+  assert.strictEqual(withLabel.model.title, 'boss@x.com');
+  assert.strictEqual(v.items.find((i) => i.id === 'f2').model.actions[0], 'Forward to old@z.com');
+});
+
+test('getForm result exposes the card model for the detail view', () => {
+  const { svc } = makeApi();
+  const r = svc.getModel('f1');
+  assert.strictEqual(r.status, 'ok');
+  assert.strictEqual(r.model.titleName, 'From');
+  assert.strictEqual(svc.getModel('missing').status, 'not_found');
+});

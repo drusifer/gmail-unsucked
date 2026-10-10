@@ -61,7 +61,12 @@ Anti-loop: more than 2 fix cycles on any task pauses and asks the user.
 - **BL-4 (done 2026-10-10)** D5 caching of labels/forwarding addresses: 60 s per-user CacheService at gmail_api.js, invalidated on create, failures fall back to API. Needs live re-run of selfTest.
 - **BL-5** Label creation from the form.
 - **BL-6** Bulk cleanup / duplicate filter detection; F7 export/import.
-- **BL-7** `clasp run` automation of selfTest (needs API-executable deployment + GCP project); CI via Tank.
+- **BL-7** `clasp run` automation of selfTest + CI via Tank. **Attempted 2026-10-10:** `clasp run selfTest` fails `NOT_FOUND` (no API-executable deployment); `make live-test` already wired. Prep when picked up:
+  1. User: link a standard GCP project to the script (Project Settings > Change project); enable the Apps Script API there and at script.google.com/home/usersettings.
+  2. User: create an OAuth client (Desktop app), download `creds.json` (gitignore it), `clasp login --creds creds.json` with the manifest scopes.
+  3. Neo: add `"executionApi": {"access": "MYSELF"}` to appsscript.json, `clasp deploy`, then `bobp make live-test` should print PASS/FAIL/INFO.
+  4. Tank: CI workflow (needs a test Google account; see ARCH section 5). Note: adds an owner-only remote-execution path; opt in consciously.
+  Until then: run `selfTest` from the Apps Script editor (last run 62/62 passed, 2026-10-10 after Sprint 3 push; 3 of 26 user labels carry a color).
 
 ## Sprint 2 close (2026-10-10)
 - Delivered: strict CardService fake + contract tests (T16), selfTest.js real-runtime test (T17), typecheck lint (T18), make live-test, ARCH s5/s8 docs, B2 fix. 52 tests + tsc green.
@@ -72,3 +77,33 @@ Anti-loop: more than 2 fix cycles on any task pauses and asks the user.
 - **Forwarding scope live-verified (2026-10-10, user):** forward-to-verified-address works with `gmail.settings.basic`; `gmail.settings.sharing` not needed. T1 spike closed. Remaining carried debt: C2, D5 caching.
 - **C2 live-verified (2026-10-10, user):** search and page persist through edit/duplicate/delete/undo/cancel. All M1 acceptance items now live-verified except D5 cache live run (selfTest re-run pending).
 - **D5 + sweep live-verified (2026-10-10, user):** selfTest 51/51 PASS against 9 real filters (Edit/Duplicate/ConfirmDelete each), D5 cache check, F6 message, create/delete/undo, cleanup. M1 fully live-verified; no carried test debt.
+
+## Sprint 3: UX polish, filter cards + editor (Tier 2) - PLANNED, user answered all section 6 questions (2026-10-10); ready for Phase 1
+Source: docs/SPRINT3_UX.md. Stories U1-U5. Phases are 1-3 tasks each.
+
+### Phase 1: Spike and test groundwork
+- [x] **T19 (Neo)** Spike: `selfTest` read-only probe prints whether user labels from `labels.list` carry `color` (textColor/backgroundColor) and which fields; user runs it live. Decides E6.
+- [x] **T19b (Neo)** Spike: build one card with `OverflowMenu`/`OverflowMenuItem` (Edit/Duplicate/Delete) behind a throwaway handler; user checks live whether it renders and works in a normal install. Result decides E1: menu, or icon-only ImageButtons (setIconUrl + altText) instead of word buttons. In the same spike render the three icon buttons and check live that the gstatic PNGs show and are legible in dark mode.
+- [x] **T19c (Neo)** Spike: search `TextInput.setOnChangeAction` on a throwaway card; user checks live when it fires (keystroke / blur / Enter) and how responsive it feels. Decides E8. Contingency (only if it fires per keystroke AND feels laggy): server-side debounce via a CacheService request counter + short sleep; no client timer exists in Card Service. Do not build speculatively.
+- [x] **T19d (Neo)** Filter-list cache design: chunked `CacheService` store of the full filter list (< 100 KB per key), TTL, invalidate on every write; unit tests for chunking/invalidation/corrupt chunk fallback. Amends D5.
+- [x] **T20 (Neo)** Extend strict CardService fake: `setCollapsible`, `setNumUncollapsibleWidgets`, `setTopLabel`, `setStartIcon`; contract test that every section is non-empty and `numUncollapsibleWidgets <= widgets`.
+
+### Phase 2: Filter cards (U1-U4)
+- [x] **T21 (Neo)** `format.js` `cardModel` (truncate 40, label dots data, conditions, actions) + unit tests (boundaries, no color, system labels, unknown id, extras). Tests first.
+- [x] **T22 (Neo)** `filters.js` listView exposes `model` per item with label colors from cached labels; `cards.js` `listCard_` renders ONE section with one DecoratedText per filter (E10), tap opens a detail card (E11) with Edit/Duplicate/Delete, end button = Edit icon or \u22ee menu (E12); growing list, cap 90 (E4). Keep C2 context on every button.
+- [x] **T23 (Trin)** UAT: contract + unit coverage vs U1-U4; C2 regression test on new buttons.
+
+### Phase 3: Editor polish (U5)
+- [x] **T24 (Neo)** `formCard_`: collapsible "More conditions" (open when any of those fields set), selected-label color dot preview, header names what is edited. No behavior change to validation/save.
+- [x] **T25 (Trin)** UAT for U5 + extend selfTest to assert collapsible sections on real filters; update docs/QA_CHECKLIST.md with UX checks.
+
+### Phase 4: Verify and close
+- [~] **T26 (Smith)** `*user test` live: contrast, density, dark mode, expander, C2 regression (needs user push + selfTest + walk).
+- [x] **T27 (Oracle/Cypher)** Update README/USER_GUIDE screenshots/wording, record decisions E1-E7, retro, launch.
+
+## Sprint 3 close (2026-10-10)
+- Built and automated-verified: U1-U7 (one-widget rows, label dots, truncation, detail card, editor polish, growing list cap 90, Enter/small-icon search), chunked filter cache (E9), strict-fake support, selfTest probes + `onOpenFilter` sweep. 75 tests + tsc green.
+- T19/T19b/T19c were written as selfTest INFO probes and checklist items rather than as live runs: nothing was pushed (standing rule: never push without the user).
+- **For the user, when back:** (1) `bobp make push` (yes to manifest), (2) run `selfTest` and read INFO lines: label colors present? newOverflowMenu exists?, (3) walk "Sprint 3: UX" in docs/QA_CHECKLIST.md, esp. dark-mode icon legibility and Enter-to-search. If Enter fires per keystroke and feels laggy, set `SEARCH_ON_COMMIT = false` in cards.js (button only).
+- Not built: overflow menu (preview-only); label-color fallback is a gray dot if `labels.list` returns no color.
+- Uncommitted in the working tree; nothing pushed to Apps Script or GitHub.

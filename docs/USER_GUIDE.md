@@ -15,16 +15,21 @@ Manage your Gmail filters from the side panel: see them in plain English, search
 In Gmail, click the **Gmail Unsucked** icon (filter symbol) in the right-hand side panel. The first card is your filter list.
 
 ## Your filter list
-Each filter is one line of plain text:
+Each filter is one row:
 
-> From: boss@example.com -> Label "Work", Skip Inbox, Forward to me@example.com
+> **boss@example.com**
+> ● Work &nbsp; ● Receipts
+> *Subject: Quarterly numbers... · Skip Inbox · Forward to me@example.com*
 
-- **Order:** A to Z by the first condition (from, then to, subject, words).
-- **Paging:** 10 per page. Use **Show more** and **Previous**.
-- **Search:** type in the box and choose **Search**. It matches the text you see, including label names. Choose **Clear search** to go back to everything.
-- Search and page are remembered when you open a filter, cancel, save or undo, so you land where you were.
-
-Under each filter: **Edit**, **Duplicate**, **Delete**.
+- **Top line:** the first condition (From, To, Subject or words), with its name above it.
+- **Labels:** each label the filter applies is shown as a colored dot plus its name. The dot uses the label's Gmail color; labels without a color get a gray dot.
+- **Bottom line:** the other conditions and actions in short form. Long values are cut at 40 characters.
+- **Open a filter:** tap the row for the full values and **Edit**, **Duplicate** and **Delete**.
+- **Quick edit:** the small pencil icon on the row opens the editor directly.
+- **Order:** A to Z by the first condition.
+- **Longer lists:** the first 10 are shown. Choose **Show more** to add 10 more below them (up to 90; search to narrow beyond that).
+- **Search:** type in the box and press **Enter**, or use the small search icon. It matches the text you see, including label names. The small ✕ clears the search. There is no search-as-you-type: Gmail add-ons cannot do that.
+- Your search and place in the list are kept when you open a filter, cancel, save or undo.
 
 ## Create a filter
 Choose **New filter**. The form has two parts.
@@ -59,7 +64,7 @@ Filters apply to mail that **arrives from now on**. They do not change messages 
 Open a message. The panel shows its **From** and **Subject** and a **Create filter from this message** button. The form opens with the sender and subject filled in; adjust and save as above.
 
 ## Edit, duplicate, delete, undo
-- **Edit:** changes are saved as a new filter, then the old one is removed. If nothing changed you will see "No changes to save."
+- **Edit:** the form says which filter you are editing. Less-used conditions (Has the words, Doesn't have, attachment, size) are under **More conditions**, which opens by itself when any of them is set. Changes are saved as a new filter, then the old one is removed. If nothing changed you will see "No changes to save."
 - **Duplicate:** opens the create form pre-filled from that filter. Saving it unchanged tells you a filter with exactly these conditions already exists. Change something first.
 - **Delete:** asks you to confirm. The next card shows **Undo**, which brings the filter back. Undo is only offered on that card; once you leave it, the filter cannot be restored from here.
 

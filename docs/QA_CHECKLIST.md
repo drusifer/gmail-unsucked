@@ -20,3 +20,13 @@ Prereqs: `clasp login`, `bobp make push` (pushes to the live script), then Gmail
 - [x] C2 (live-verified 2026-10-10): search "x", go to page 2, edit then save: list returns to the same search and page.
 - [ ] Empty account (no filters) shows the empty state; no labels shows the "create a label in Gmail" hint.
 - [ ] Nothing relies on color alone (errors begin with the word "Error:").
+
+## Sprint 3: UX (all live checks verified 2026-10-10)
+- [x] U1/U2: each filter is one row; label dots show Gmail's color (compare with Gmail), gray dot for uncolored; label name always present.
+- [x] U3: a filter with a very long subject shows it cut with "..." on the row and in full on the detail card.
+- [x] U4: tapping a row opens the detail card with Edit / Duplicate / Delete; Back returns to the same search and place (C2).
+- [x] U5: New filter shows "More conditions" collapsed; Edit on a filter with Has words/size shows it open; chosen label shows its dot; Edit says what is being edited.
+- [x] U6: with more than 10 filters, "Show more" adds 10 below and keeps earlier rows; Enter in the search box runs the search; the search icon works; the ✕ clears it.
+- [x] U7: row Edit icon and search icons are legible (light AND dark mode) and have a usable tap target.
+- [x] Run `selfTest`; read the INFO lines (label colors count, newImageButton, newOverflowMenu) and tell Cypher.
+

@@ -6,7 +6,15 @@
 
 // ---- shared helpers -------------------------------------------------------
 
-const PAGE_SIZE = 10;
+// The list is a growing list (Card Service has no scroll event): each "Show more" re-renders
+// with the next batch added. MAX_SHOWN stays under the 100-widget-per-section platform limit.
+const BATCH_SIZE = 10;
+const MAX_SHOWN = 90;
+const ICON_BASE = 'https://www.gstatic.com/images/icons/material/system/1x/';
+const NEUTRAL_DOT = '#757575';
+// Enter-to-search: Card Service has no submit-on-Enter, only the field's change action (a commit, not a
+// per-keystroke filter, by design). Set false to leave only the Search button.
+const SEARCH_ON_COMMIT = true;
 
 const svc_ = () => FilterService.create(GmailApi, Format);
 
@@ -44,6 +52,33 @@ const card_ = (title, sections) => {
 
 const para_ = (html) => CardService.newTextParagraph().setText(html);
 
+/** Small icon-only button (text buttons are too big for list rows). altText is required by the platform. */
+const iconButton_ = (altText, iconName, fn, ctx, extra) => CardService.newImageButton()
+  .setIconUrl(`${ICON_BASE}${iconName}_grey600_24dp.png`)
+  .setAltText(altText)
+  .setOnClickAction(action_(fn, ctx, extra));
+
+/** "● Work   ● Receipts": the dot carries the Gmail label color, the name is always shown too. */
+const labelDots_ = (labels) => labels
+  .map((l) => `<font color="${l.color || NEUTRAL_DOT}">\u25cf</font> ${esc_(l.name)}`)
+  .join('&nbsp;&nbsp;&nbsp;');
+
+/** One filter as one DecoratedText widget: criterion + label dots + short summary + Edit icon. */
+const filterRow_ = (item, here) => {
+  const m = item.model;
+  const lines = [`<b>${esc_(m.title)}</b>`];
+  if (m.labels.length) lines.push(labelDots_(m.labels));
+  const rest = m.conditions.slice(1).map((c) => (c.value ? `${c.name}: ${c.value}` : c.name)).concat(m.actions);
+  const w = CardService.newDecoratedText()
+    .setText(lines.join('<br>'))
+    .setWrapText(true)
+    .setOnClickAction(action_('onOpenFilter', here, { id: item.id }))
+    .setButton(iconButton_('Edit', 'edit', 'onEditFilter', here, { id: item.id }));
+  if (m.titleName) w.setTopLabel(m.titleName);
+  if (rest.length) w.setBottomLabel(Format.truncate(rest.join(' \u00b7 '), 60));
+  return w;
+};
+
 const friendlyError_ = (err) => {
   const msg = (err && err.message) || 'Unknown error';
   if (/already exists/i.test(msg)) {
@@ -59,7 +94,7 @@ const errorCard_ = (err, ctx, headline) =>
   card_('Something went wrong', [
     CardService.newCardSection()
       .addWidget(para_(`<b>${esc_(headline || 'That did not work.')}</b><br>${esc_(friendlyError_(err))}`))
-      .addWidget(para_(`<font color="#5f6368">Details: ${esc_((err && err.message) || '')}</font>`))
+      .addWidget(para_(`<font color="#757575">Details: ${esc_((err && err.message) || '')}</font>`))
       .addWidget(CardService.newButtonSet()
         .addButton(button_('Back to filters', 'onShowList', ctx, {}, true))),
   ]);
@@ -77,20 +112,25 @@ const toList_ = (ctx, notificationText) => {
 
 const listCard_ = (ctx) => {
   const section = CardService.newCardSection();
+  const batches = Math.max(1, (Number(ctx.page) || 0) + 1);
+  const shown = Math.min(batches * BATCH_SIZE, MAX_SHOWN);
   let view;
   try {
-    view = svc_().listView({ q: ctx.q, page: ctx.page, pageSize: PAGE_SIZE });
+    view = svc_().listView({ q: ctx.q, page: 0, pageSize: shown });
   } catch (err) {
     return errorCard_(err, { q: '', page: 0 }, 'Could not load your filters.');
   }
-  const here = { q: ctx.q, page: view.page };
+  const here = { q: ctx.q, page: batches - 1 };
 
   section.addWidget(CardService.newButtonSet()
     .addButton(button_('New filter', 'onNewFilter', here, {}, true)));
-  section.addWidget(CardService.newTextInput().setFieldName('q').setTitle('Search filters').setValue(ctx.q || ''));
+  const searchInput = CardService.newTextInput().setFieldName('q').setTitle('Search filters (press Enter)').setValue(ctx.q || '');
+  if (SEARCH_ON_COMMIT) searchInput.setOnChangeAction(action_('onSearch', { q: ctx.q, page: 0 }, {}));
+  section.addWidget(searchInput);
+  // Small icon buttons: the field itself carries the label, so word buttons would just add height.
   const searchSet = CardService.newButtonSet()
-    .addButton(button_('Search', 'onSearch', { q: ctx.q, page: 0 }, {}));
-  if (ctx.q) searchSet.addButton(button_('Clear search', 'onClearSearch', { q: '', page: 0 }, {}));
+    .addButton(iconButton_('Search', 'search', 'onSearch', { q: ctx.q, page: 0 }, {}));
+  if (ctx.q) searchSet.addButton(iconButton_('Clear search', 'close', 'onClearSearch', { q: '', page: 0 }, {}));
   section.addWidget(searchSet);
 
   if (view.totalFilters === 0) {
@@ -98,25 +138,21 @@ const listCard_ = (ctx) => {
   } else if (view.matched === 0) {
     section.addWidget(para_(`No filters match "${esc_(ctx.q)}".`));
   } else {
+    const count = view.items.length;
     const summary = ctx.q
-      ? `${view.matched} of ${view.totalFilters} filters match "${esc_(ctx.q)}" (showing ${view.start}-${view.end})`
-      : `Showing ${view.start}-${view.end} of ${view.totalFilters} filters`;
-    section.addWidget(para_(`<font color="#5f6368">${summary}</font>`));
-    view.items.forEach((item) => {
-      section.addWidget(CardService.newDecoratedText().setText(esc_(item.text)).setWrapText(true));
-      section.addWidget(CardService.newButtonSet()
-        .addButton(button_('Edit', 'onEditFilter', here, { id: item.id }))
-        .addButton(button_('Duplicate', 'onDuplicateFilter', here, { id: item.id }))
-        .addButton(button_('Delete', 'onConfirmDelete', here, { id: item.id })));
-    });
-    const pager = CardService.newButtonSet();
-    if (view.page > 0) pager.addButton(button_('Previous', 'onShowList', { q: ctx.q, page: view.page - 1 }, {}));
-    if (view.page < view.pages - 1) {
-      const nextStart = (view.page + 1) * PAGE_SIZE + 1;
-      const nextEnd = Math.min(view.matched, (view.page + 2) * PAGE_SIZE);
-      pager.addButton(button_(`Show more (${nextStart}-${nextEnd})`, 'onShowList', { q: ctx.q, page: view.page + 1 }, {}));
+      ? `${view.matched} of ${view.totalFilters} filters match "${esc_(ctx.q)}" (showing ${count})`
+      : `Showing ${count} of ${view.totalFilters} filters`;
+    section.addWidget(para_(`<font color="#757575">${summary}</font>`));
+    view.items.forEach((item) => section.addWidget(filterRow_(item, here)));
+    if (view.matched > count) {
+      if (count >= MAX_SHOWN) {
+        section.addWidget(para_(`<font color="#757575">Showing the first ${MAX_SHOWN}. Search to narrow the list.</font>`));
+      } else {
+        const next = Math.min(view.matched, count + BATCH_SIZE) - count;
+        section.addWidget(CardService.newButtonSet()
+          .addButton(button_(`Show ${next} more`, 'onShowList', { q: ctx.q, page: batches }, {})));
+      }
     }
-    if (view.pages > 1) section.addWidget(pager);
   }
   return card_('Filter Manager', [section]);
 };
@@ -168,23 +204,32 @@ const formCard_ = (opts) => {
   if (Object.keys(errors).length) top.addWidget(para_('<font color="#d93025"><b>Please fix the problems below.</b></font>'));
 
   const when = CardService.newCardSection().setHeader('When a message matches');
+  if (opts.summary) when.addWidget(para_(`<font color="#757575">Editing: ${esc_(Format.truncate(opts.summary, 120))}</font>`));
   if (err('criteria')) when.addWidget(err('criteria'));
-  [['from', 'From'], ['to', 'To'], ['subject', 'Subject'], ['query', 'Has the words'], ['negatedQuery', "Doesn't have"]]
+  [['from', 'From'], ['to', 'To'], ['subject', 'Subject']]
     .forEach(([k, title]) => when.addWidget(
       CardService.newTextInput().setFieldName(k).setTitle(title).setValue(form[k])));
-  when.addWidget(CardService.newSelectionInput().setType(CardService.SelectionInputType.CHECK_BOX)
+
+  // Less-used conditions fold away unless one of them is set or has an error.
+  const more = CardService.newCardSection().setHeader('More conditions');
+  [['query', 'Has the words'], ['negatedQuery', "Doesn't have"]]
+    .forEach(([k, title]) => more.addWidget(
+      CardService.newTextInput().setFieldName(k).setTitle(title).setValue(form[k])));
+  more.addWidget(CardService.newSelectionInput().setType(CardService.SelectionInputType.CHECK_BOX)
     .setFieldName('options').setTitle('Attachments')
     .addItem('Has attachment', 'hasAttachment', form.hasAttachment));
-  when.addWidget(CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN)
+  more.addWidget(CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN)
     .setFieldName('sizeOp').setTitle('Size is')
     .addItem('Larger than', 'larger', form.sizeOp === 'larger')
     .addItem('Smaller than', 'smaller', form.sizeOp === 'smaller'));
-  if (err('sizeValue')) when.addWidget(err('sizeValue'));
-  when.addWidget(CardService.newTextInput().setFieldName('sizeValue').setTitle('Size (leave empty for any)').setValue(form.sizeValue));
+  if (err('sizeValue')) more.addWidget(err('sizeValue'));
+  more.addWidget(CardService.newTextInput().setFieldName('sizeValue').setTitle('Size (leave empty for any)').setValue(form.sizeValue));
   const unit = CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN)
     .setFieldName('sizeUnit').setTitle('Size unit');
   [['MB', 'MB'], ['KB', 'KB'], ['B', 'bytes']].forEach(([v, t]) => unit.addItem(t, v, form.sizeUnit === v));
-  when.addWidget(unit);
+  more.addWidget(unit);
+  const moreInUse = !!(form.query || form.negatedQuery || form.hasAttachment || form.sizeValue || errors.sizeValue);
+  if (!moreInUse) more.setCollapsible(true).setNumUncollapsibleWidgets(0);
 
   const then = CardService.newCardSection().setHeader('Do this');
   if (err('actions')) then.addWidget(err('actions'));
@@ -198,8 +243,13 @@ const formCard_ = (opts) => {
   });
   if (form.labelId && !known) labelSel.addItem(`Unknown label (${form.labelId})`, form.labelId, true);
   then.addWidget(labelSel);
+  const chosen = options.labels.find((l) => l.id === form.labelId);
+  if (chosen) {
+    const bg = chosen.color && chosen.color.backgroundColor;
+    then.addWidget(para_(labelDots_([{ name: chosen.name, color: /^#[0-9a-fA-F]{6}$/.test(bg || '') ? bg : null }])));
+  }
   if (options.labels.length === 0) {
-    then.addWidget(para_('<font color="#5f6368">You have no labels yet. Create one in Gmail (Settings > Labels), then reopen this form.</font>'));
+    then.addWidget(para_('<font color="#757575">You have no labels yet. Create one in Gmail (Settings > Labels), then reopen this form.</font>'));
   }
   then.addWidget(CardService.newSelectionInput().setType(CardService.SelectionInputType.CHECK_BOX)
     .setFieldName('actions').setTitle('Also')
@@ -220,19 +270,19 @@ const formCard_ = (opts) => {
   });
   if (form.forwardTo && !fwdKnown) fwd.addItem(`${form.forwardTo} (not verified)`, form.forwardTo, true);
   then.addWidget(fwd);
-  then.addWidget(para_('<font color="#5f6368">Only verified forwarding addresses are listed. Add and verify one in Gmail Settings > Forwarding and addresses.</font>'));
+  then.addWidget(para_('<font color="#757575">Only verified forwarding addresses are listed. Add and verify one in Gmail Settings > Forwarding and addresses.</font>'));
 
   const extraNote = (extras.action.addLabelIds || []).length + (extras.action.removeLabelIds || []).length +
     Object.keys(extras.criteria || {}).length;
   const foot = CardService.newCardSection();
   if (extraNote > 0) {
-    foot.addWidget(para_('<font color="#5f6368">This filter has extra settings this form cannot show. They will be kept when you save.</font>'));
+    foot.addWidget(para_('<font color="#757575">This filter has extra settings this form cannot show. They will be kept when you save.</font>'));
   }
   const saveExtra = { mode: opts.mode, oldId: opts.oldId || '', extras: JSON.stringify(extras) };
   foot.addWidget(CardService.newButtonSet()
     .addButton(button_(opts.mode === 'edit' ? 'Save changes' : 'Create filter', 'onSaveFilter', ctx, saveExtra, true))
     .addButton(button_('Cancel', 'onCancel', ctx, {})));
-  const sections = Object.keys(errors).length ? [top, when, then, foot] : [when, then, foot];
+  const sections = (Object.keys(errors).length ? [top] : []).concat([when, more, then, foot]);
   return card_(opts.title || (opts.mode === 'edit' ? 'Edit filter' : 'New filter'), sections);
 };
 
@@ -297,12 +347,36 @@ const onNewFromMessage = (e) => {
   return push_(formCard_({ mode: 'create', form, ctx: ctx_(e), title: 'New filter from message' }));
 };
 
+/** Detail view for one filter: full values, label colors, and every action (the "expander"). */
+const onOpenFilter = (e) => {
+  const p = params_(e);
+  const ctx = ctx_(e);
+  try {
+    const r = svc_().getModel(p.id);
+    if (r.status !== 'ok') return notify_('That filter no longer exists.');
+    const m = r.model;
+    const sec = CardService.newCardSection();
+    m.conditions.forEach((c) => sec.addWidget(CardService.newDecoratedText()
+      .setTopLabel(c.value ? c.name : 'Condition').setText(esc_(c.value ? c.full : c.name)).setWrapText(true)));
+    if (m.labels.length) sec.addWidget(CardService.newDecoratedText().setTopLabel('Labels').setText(labelDots_(m.labels)).setWrapText(true));
+    m.actions.forEach((a) => sec.addWidget(CardService.newDecoratedText().setTopLabel('Action').setText(esc_(a)).setWrapText(true)));
+    if (!m.conditions.length && !m.labels.length && !m.actions.length) sec.addWidget(para_('This filter has no conditions or actions.'));
+    sec.addWidget(CardService.newButtonSet()
+      .addButton(button_('Edit', 'onEditFilter', ctx, { id: p.id }, true))
+      .addButton(button_('Duplicate', 'onDuplicateFilter', ctx, { id: p.id }))
+      .addButton(button_('Delete', 'onConfirmDelete', ctx, { id: p.id })));
+    return push_(card_('Filter', [sec]));
+  } catch (err) {
+    return push_(errorCard_(err, ctx, 'Could not open that filter.'));
+  }
+};
+
 const onEditFilter = (e) => {
   const p = params_(e);
   try {
     const r = svc_().getForm(p.id);
     if (r.status !== 'ok') return notify_('That filter no longer exists.');
-    return push_(formCard_({ mode: 'edit', oldId: p.id, form: r.form, extras: r.extras, ctx: ctx_(e) }));
+    return push_(formCard_({ mode: 'edit', oldId: p.id, form: r.form, extras: r.extras, ctx: ctx_(e), summary: svc_().render(r.filter) }));
   } catch (err) {
     return push_(errorCard_(err, ctx_(e), 'Could not open that filter.'));
   }
@@ -341,7 +415,7 @@ const onSaveFilter = (e) => {
     case 'partial':
       return update_(card_('Saved, but the old filter is still there', [CardService.newCardSection()
         .addWidget(para_('<b>Your new filter was created, but the old one could not be removed,</b> so you now have both. Remove the old one to finish.'))
-        .addWidget(para_(`<font color="#5f6368">Details: ${esc_(result.error.message)}</font>`))
+        .addWidget(para_(`<font color="#757575">Details: ${esc_(result.error.message)}</font>`))
         .addWidget(CardService.newButtonSet()
           .addButton(button_('Delete old filter', 'onRetryDeleteOld', ctx, { oldId: result.oldId }, true))
           .addButton(button_('Back to filters', 'onShowList', ctx, {})))]));

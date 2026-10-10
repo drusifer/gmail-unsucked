@@ -104,6 +104,67 @@ const Format = (function () {
       return String(a.id).localeCompare(String(b.id));
     });
 
+  /** Trim and cut to maxLen characters, ending in "..." when cut. */
+  const truncate = (value, maxLen) => {
+    const s = String(value === undefined || value === null ? '' : value).trim();
+    const n = maxLen > 3 ? maxLen : 40;
+    return s.length > n ? `${s.slice(0, n - 3)}...` : s;
+  };
+
+  // Gmail label colors come from a fixed palette of #rrggbb values; anything else is dropped
+  // so a value can never be injected into card HTML.
+  const safeColor = (c) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
+
+  const CRITERIA_FIELDS = [['from', 'From'], ['to', 'To'], ['subject', 'Subject'], ['query', 'Has words'], ['negatedQuery', "Doesn't have"]];
+
+  /**
+   * Presentation model for one filter, used to draw a list row and a detail card.
+   * Pure. labelColors maps label id -> '#rrggbb' for user labels that have one.
+   * Returns { id, titleName, title, labels:[{id,name,color}], conditions:[{name,value,full}], actions:[text] }.
+   */
+  const cardModel = (filter, labelsById, labelColors, opts) => {
+    const maxLen = (opts && opts.maxLen) || 40;
+    const c = filter.criteria || {};
+    const a = filter.action || {};
+
+    const conds = [];
+    CRITERIA_FIELDS.forEach(([key, name]) => {
+      if (c[key]) conds.push({ name, value: truncate(c[key], maxLen), full: String(c[key]) });
+    });
+    if (c.hasAttachment) conds.push({ name: 'Has attachment', value: '', full: '' });
+    if (c.size !== undefined && c.size !== null && c.size !== '') {
+      const u = sizeToUnit(c.size);
+      const cmp = c.sizeComparison === 'smaller' ? 'smaller' : 'larger';
+      const text = `${cmp} than ${u.value} ${unitLabel(u.unit)}`;
+      conds.push({ name: 'Size', value: text, full: text });
+    }
+
+    const first = conds.find((x) => x.name !== 'Has attachment' && x.name !== 'Size') || conds[0];
+    const title = first ? (first.value || first.name) : '(no conditions)';
+    const titleName = first && first.value ? first.name : '';
+    const rest = first ? conds.filter((x) => x !== first) : [];
+
+    const labels = [];
+    const actions = [];
+    (a.addLabelIds || []).forEach((id) => {
+      if (id === 'STARRED') actions.push('Star it');
+      else if (id === 'IMPORTANT') actions.push('Mark important');
+      else if (id === 'TRASH') actions.push('Delete it');
+      else if (/^CATEGORY_/.test(id)) actions.push(`Categorize as ${labelName(id, labelsById)}`);
+      else labels.push({ id, name: labelName(id, labelsById), color: safeColor(labelColors && labelColors[id]) });
+    });
+    (a.removeLabelIds || []).forEach((id) => {
+      if (id === 'INBOX') actions.push('Skip Inbox');
+      else if (id === 'UNREAD') actions.push('Mark as read');
+      else if (id === 'SPAM') actions.push('Never send to Spam');
+      else if (id === 'IMPORTANT') actions.push('Never mark important');
+      else actions.push(`Remove label "${labelName(id, labelsById)}"`);
+    });
+    if (a.forward) actions.push(`Forward to ${a.forward}`);
+
+    return { id: filter.id, titleName, title, labels, conditions: first ? [first].concat(rest) : [], actions };
+  };
+
   /** Case-insensitive match against the rendered text the user sees. */
   const searchFilters = (filters, query, labelsById) => {
     const q = String(query || '').trim().toLowerCase();
@@ -306,7 +367,7 @@ const Format = (function () {
   };
 
   return {
-    renderCriteria, renderActions, renderFilter, sortFilters, searchFilters,
+    renderCriteria, renderActions, renderFilter, sortFilters, truncate, cardModel, searchFilters,
     paginate, emptyForm, emptyExtras, normalizeForm, filterToForm, formToFilter,
     filtersEqual, validateForm, extractEmail, sizeToUnit, unitToBytes, labelName,
   };
