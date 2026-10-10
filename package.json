@@ -1,0 +1,13 @@
+{
+  "name": "gmail-unsucked",
+  "private": true,
+  "description": "Gmail add-on: filter editor. Dev tooling only; the add-on itself is plain Apps Script files.",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/google-apps-script": "^2.0.13",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.6.0"
+  }
+}
