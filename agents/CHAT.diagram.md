@@ -11,7 +11,8 @@ sequenceDiagram
     participant Neo
     participant User
     participant Cypher
-    Note over Trin,Cypher: 📅 2026-10-10
+    participant Oracle
+    Note over Trin,Oracle: 📅 2026-10-10
     Trin->>All: "qa verify"
     Note right of Trin: "Live re-verify passed:<br/>selfTest incl. real-<br/>filter sweep + F6<br/>friendly duplicate-save<br/>message. B1 closed, B2<br/>verified. Debt left: C2,<br/>F8, fo…"
     Trin->>All: "qa verify"
@@ -24,4 +25,6 @@ sequenceDiagram
     Note right of Trin: "C2 live-verified. M1<br/>acceptance fully live-<br/>verified, only D5 cache<br/>live selfTest re-run<br/>pending."
     Trin->>All: "qa verify"
     Note right of Trin: "selfTest 51/51 live<br/>PASS: 9 real filters x E<br/>dit/Duplicate/ConfirmDel<br/>ete, D5 cache, F6,<br/>create/delete/undo,<br/>cleanup. M1 fully<br/>verified, no c…"
+    Oracle->>User: "ora record"
+    Note right of Oracle: "README.md (dev/setup/tes<br/>ting/limits) and<br/>docs/USER_GUIDE.md (end-<br/>user) written,<br/>uncommitted. @User<br/>review, say when to<br/>commit+push"
 ```

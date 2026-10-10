@@ -54,3 +54,7 @@ Agents **must** use this for every message posted to CHAT.md:
 ---
 [<small>2026-10-10 13:28:25</small>] [**Trin**]->[**all**] *qa verify*:
  selfTest 51/51 live PASS: 9 real filters x Edit/Duplicate/ConfirmDelete, D5 cache, F6, create/delete/undo, cleanup. M1 fully verified; no carried test debt. Backlog open.
+
+---
+[<small>2026-10-10 13:35:41</small>] [**Oracle**]->[**User**] *ora record*:
+ README.md (dev/setup/testing/limits) and docs/USER_GUIDE.md (end-user) written; uncommitted. @User review, say when to commit+push
