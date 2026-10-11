@@ -101,6 +101,10 @@ Source: docs/SPRINT3_UX.md. Stories U1-U5. Phases are 1-3 tasks each.
 - [~] **T26 (Smith)** `*user test` live: contrast, density, dark mode, expander, C2 regression (needs user push + selfTest + walk).
 - [x] **T27 (Oracle/Cypher)** Update README/USER_GUIDE screenshots/wording, record decisions E1-E7, retro, launch.
 
+## Sprint 3 final close (2026-10-11)
+- List item redesigned live with the user: start-icon DecoratedText lines (own icon column), tag line, forward line, action emoji line, [View details] [Edit] buttons. Columns/Grid/chips tried and rejected (see docs/SPRINT3_UX.md section 8).
+- Contrast measured on real PNGs; icons moved to grey600. 78 tests + typecheck green; selfTest 62/62 live; all UX checks verified by the user. Committed and pushed.
+
 ## Sprint 3 close (2026-10-10)
 - Built and automated-verified: U1-U7 (one-widget rows, label dots, truncation, detail card, editor polish, growing list cap 90, Enter/small-icon search), chunked filter cache (E9), strict-fake support, selfTest probes + `onOpenFilter` sweep. 75 tests + tsc green.
 - T19/T19b/T19c were written as selfTest INFO probes and checklist items rather than as live runs: nothing was pushed (standing rule: never push without the user).

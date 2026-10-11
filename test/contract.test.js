@@ -158,40 +158,66 @@ test('F6: saving an identical filter shows the friendly "already exists" message
 
 // ---- Sprint 3 layout (docs/SPRINT3_UX.md E4, E10-E12, U5) ----
 const sectionsOf = (card) => card.props.sections;
+const allWidgets = (card) => sectionsOf(card).reduce((acc, sec) => acc.concat(sec.props.widgets), []);
 const widgetKinds = (section) => section.props.widgets.map((w) => w.__kind);
 const manyFilters = (n) => Array.from({ length: n }, (_, i) => ({
   id: `m${i}`, criteria: { from: `s${String(i).padStart(3, '0')}@x.com` }, action: { addLabelIds: ['Label_1'] },
 }));
 
-test('list is one Card with one section; each filter is exactly one DecoratedText row', () => {
+test('list: controls section then row sections; each filter ends in a [View details] [Edit] row, dividers between filters', () => {
   const env = makeEnv();
   const card = env.run('buildHomepage({})');
-  assert.strictEqual(sectionsOf(card).length, 1);
-  const rows = sectionsOf(card)[0].props.widgets.filter((w) => w.__kind === 'DecoratedText');
-  assert.strictEqual(rows.length, FILTERS.length);
-  rows.forEach((r) => {
-    assert.ok(r.props.onClick && r.props.onClick.props.functionName === 'onOpenFilter', 'row opens the detail card');
-    assert.strictEqual(r.props.button.__kind, 'ImageButton', 'single end button is an icon button');
-    assert.ok(r.props.button.props.altText);
-  });
+  assert.strictEqual(sectionsOf(card).length, 2, 'controls + one rows section');
+  const bars = allWidgets(card).filter((w) => w.__kind === 'ButtonSet' && w.props.buttons.some((b) => b.props.text === 'View details'));
+  assert.strictEqual(bars.length, FILTERS.length, 'one [View details] [Edit] row per filter');
+  bars.forEach((bar) => assert.deepStrictEqual(bar.props.buttons.map((b) => [b.props.text, b.props.action.props.functionName]),
+    [['View details', 'onOpenFilter'], ['Edit', 'onEditFilter']]));
+  assert.strictEqual(allWidgets(card).filter((w) => w.__kind === 'Divider').length, FILTERS.length - 1, 'a divider between each pair of filters');
 });
 
-test('label color dots use the label color; labels without one get a neutral dot; names always present', () => {
+test('labels render as one tag line of names, no color dots', () => {
   const env = makeEnv();
   env.run(`Gmail.Users.Labels.list = () => ({ labels: [
     { id: 'Label_1', name: 'Work', type: 'user', color: { backgroundColor: '#16a766', textColor: '#ffffff' } },
     { id: 'Label_2', name: 'Home', type: 'user' } ] })`);
   const card = env.run('buildHomepage({})');
-  const text = JSON.stringify(sectionsOf(card)[0].props.widgets.map((w) => w.props.text || ''));
-  assert.match(text, /#16a766[^>]*>●<\/font> Work/);
-  assert.match(text, /#757575[^>]*>●<\/font> Home/);
+  const text = JSON.stringify(allWidgets(card).map((w) => w.props.text || ''));
+  assert.match(text, /Work/);
+  const tag = allWidgets(card).find((w) => w.__kind === 'DecoratedText' && w.props.text === 'Work');
+  assert.ok(tag && /label_grey600/.test(tag.props.startIcon.props.iconUrl), 'tag line has the label icon');
+  assert.doesNotMatch(text, /●|#16a766/);
+});
+
+test('filter item: one DecoratedText per line with a start icon (own column), tag line, action icons last', () => {
+  const env = makeEnv();
+  env.state.filters = [{ id: 'k1', criteria: { from: 'a@x.com', query: 'boot' }, action: { addLabelIds: ['STARRED', 'Label_1'], removeLabelIds: ['INBOX'], forward: 'fwd@x.com' } }];
+  const card = env.run('buildHomepage({})');
+  const lines = allWidgets(card).filter((w) => w.__kind === 'DecoratedText');
+  assert.strictEqual(lines.length, 5, 'From, Has words, tags, forward address, actions');
+  const icons = lines.slice(0, 3).map((l) => l.props.startIcon.props.iconUrl.split('/').pop());
+  assert.deepStrictEqual(icons, ['person_grey600_24dp.png', 'search_grey600_24dp.png', 'label_grey600_24dp.png']);
+  lines.slice(0, 3).forEach((l) => assert.strictEqual(l.props.wrap, true));
+  lines.forEach((l) => assert.strictEqual(l.props.onClick.props.functionName, 'onOpenFilter'));
+  assert.strictEqual(lines[3].props.text, 'fwd@x.com', 'forward address is shown as text');
+  assert.match(lines[3].props.startIcon.props.iconUrl, /arrow_forward/);
+  const last = lines[4];
+  assert.match(last.props.text, /\u2B50 \u{1F4E4}/u);
+  assert.doesNotMatch(last.props.text, /\u27A1/u, 'forward icon not repeated on the icon line');
+  assert.ok(!last.props.button, 'icon line carries no button');
+});
+
+test('filter with only a forward action has no filler icon line', () => {
+  const env = makeEnv();
+  env.state.filters = [{ id: 'o1', criteria: { from: 'a@x.com' }, action: { forward: 'fwd@x.com' } }];
+  const lines = allWidgets(env.run('buildHomepage({})')).filter((w) => w.__kind === 'DecoratedText');
+  assert.deepStrictEqual(lines.map((l) => l.props.text), ['<b>a@x.com</b>', 'fwd@x.com']);
 });
 
 test('growing list: batch of 10, each Show more adds 10, capped at 90 with no further button', () => {
   const env = makeEnv();
   env.state.filters = manyFilters(120);
-  const rowsAt = (page) => sectionsOf(env.run(`listCard_({ q: '', page: ${page} })`))[0].props.widgets;
-  const count = (ws) => ws.filter((w) => w.__kind === 'DecoratedText').length;
+  const rowsAt = (page) => allWidgets(env.run(`listCard_({ q: '', page: ${page} })`));
+  const count = (ws) => ws.filter((w) => w.__kind === 'ButtonSet' && w.props.buttons.some((b) => b.props.text === 'View details')).length;
   assert.strictEqual(count(rowsAt(0)), 10);
   assert.strictEqual(count(rowsAt(1)), 20);
   const more = rowsAt(0).find((w) => w.__kind === 'ButtonSet' && JSON.stringify(w).includes('onShowList'));
@@ -199,7 +225,9 @@ test('growing list: batch of 10, each Show more adds 10, capped at 90 with no fu
   const capped = rowsAt(50);
   assert.strictEqual(count(capped), 90);
   assert.ok(!capped.some((w) => w.__kind === 'ButtonSet' && JSON.stringify(w).includes('onShowList')));
-  assert.ok(capped.length <= 100, 'stays under the 100-widget limit');
+  const cappedCard = env.run("listCard_({ q: '', page: 50 })");
+  sectionsOf(cappedCard).forEach((sec) => assert.ok(sec.props.widgets.length <= 100, 'each section stays under the 100-widget limit'));
+  assert.ok(sectionsOf(cappedCard).length <= 100);
 });
 
 test('detail card carries every action with list context (C2) and full values', () => {

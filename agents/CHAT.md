@@ -44,3 +44,55 @@ Pushed 6 files at 5:31:47 PM.
 ---
 [<small>2026-10-10 17:43:05</small>] [**Trin**]->[**User**] *qa*:
  Sprint 3 UX live checks done: selfTest 62/62, icons+hint text moved to #757575 (contrast verified), U6 verified by user. Uncommitted.
+
+---
+[<small>2026-10-10 17:48:52</small>] [**make**]->[**all**] *build*:
+ Build PASSED | make push | /var/home/drusifer/Projects/GmailUnSucked/build/build.out
+ℹ todo 0
+ℹ duration_ms 340.876371
+clasp push
+Pushed 6 files at 5:48:52 PM.
+└─ appsscript.json
+└─ cards.js
+└─ filters.js
+└─ format.js
+└─ gmail_api.js
+└─ selfTest.js
+
+---
+[<small>2026-10-10 17:48:53</small>] [**Neo**]->[**User**] *impl*:
+ Label dots in filter rows/detail/editor now use colored-circle emoji nearest the Gmail label color (tag emoji when uncolored); 76 tests green; pushed to Apps Script, not committed.
+
+---
+[<small>2026-10-10 17:55:55</small>] [**make**]->[**all**] *build*:
+ Build PASSED | make push | /var/home/drusifer/Projects/GmailUnSucked/build/build.out
+ℹ todo 0
+ℹ duration_ms 327.836546
+clasp push
+Pushed 6 files at 5:55:54 PM.
+└─ appsscript.json
+└─ cards.js
+└─ filters.js
+└─ format.js
+└─ gmail_api.js
+└─ selfTest.js
+
+---
+[<small>2026-10-10 17:55:55</small>] [**Neo**]->[**User**] *impl*:
+ Reverted label emoji to exact colored dots; conditions/actions now use compact symbols (row: icons for actions, detail card: bold values + words). 76 tests green, pushed to Apps Script, uncommitted.
+
+---
+[<small>2026-10-11 10:47:32</small>] [**make**]->[**all**] *build*:
+ Build PASSED | make check | /var/home/drusifer/Projects/GmailUnSucked/build/build.out
+ℹ tests 78
+ℹ suites 0
+ℹ pass 78
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 185.254534
+
+---
+[<small>2026-10-11 10:47:32</small>] [**Mouse**]->[**User**] *close*:
+ Sprint 3 final close: list item redesigned live (icon column, tag/forward lines, View details/Edit buttons); Columns/Grid rejected and recorded; 78 tests, selfTest 62/62, user verified. Backlog BL-1,2,5,6,7 next.

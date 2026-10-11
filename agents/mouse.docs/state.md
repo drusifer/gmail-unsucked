@@ -13,6 +13,10 @@ None. Awaiting next sprint planning.
 1. User: `bobp make push`, run selfTest, retry duplicate-save; report failures.
 2. Next sprint: Cypher *pm plan sprint, starting from BL-1/BL-2 if the user wants.
 
+## Sprint 3 FINAL CLOSE 2026-10-11
+- List item redesigned live (start-icon lines, tag line, forward line, action emoji, [View details] [Edit]). Columns, Grid, chips rejected; see docs/SPRINT3_UX.md section 8. 78 tests + tsc green, selfTest 62/62, all UX checks verified by user, committed + pushed.
+- Next: backlog BL-1 sort, BL-2 names/dates, BL-5 label create, BL-6 bulk cleanup, BL-7 clasp run + CI (setup steps in task.md).
+
 ## Sprint 3 (UX enhancements) CLOSED 2026-10-10
 - Archived as SPRINT_3. 75 tests + tsc green. Built U1-U7; NOT pushed or committed.
 - User to do: push, run selfTest (read INFO lines), walk docs/QA_CHECKLIST.md "Sprint 3: UX". Flag: SEARCH_ON_COMMIT in cards.js.

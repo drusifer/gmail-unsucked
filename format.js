@@ -115,12 +115,30 @@ const Format = (function () {
   // so a value can never be injected into card HTML.
   const safeColor = (c) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
 
+  // Compact symbols for conditions and actions (label colors stay exact colored dots in cards.js).
+  // Always paired with words somewhere (detail card), so a symbol is never the only signal.
+  const COND_ICONS = {
+    From: '\ud83d\udc64', To: '\ud83d\udc65', Subject: '\ud83d\udcac', 'Has words': '\ud83d\udd0d',
+    "Doesn't have": '\ud83d\udeab', 'Has attachment': '\ud83d\udcce', Size: '\ud83d\udccf',
+  };
+  // Material icon names (hosted PNGs) for the start-icon column of a list line; text-only widgets can't
+  // hang wrapped text beside an emoji, an image start icon can.
+  const COND_ICON_NAMES = {
+    From: 'person', To: 'people', Subject: 'subject', 'Has words': 'search',
+    "Doesn't have": 'block', 'Has attachment': 'attach_file', Size: 'straighten',
+  };
+  const ACTION_ICONS = {
+    star: '\u2b50', important: '\u2757', trash: '\ud83d\uddd1\ufe0f', category: '\ud83d\udcc2',
+    skipInbox: '\ud83d\udce4', read: '\ud83d\udc41\ufe0f', noSpam: '\ud83d\udee1\ufe0f',
+    noImportant: '\ud83d\udd15', removeLabel: '\u2796', forward: '\u27a1\ufe0f',
+  };
+
   const CRITERIA_FIELDS = [['from', 'From'], ['to', 'To'], ['subject', 'Subject'], ['query', 'Has words'], ['negatedQuery', "Doesn't have"]];
 
   /**
    * Presentation model for one filter, used to draw a list row and a detail card.
    * Pure. labelColors maps label id -> '#rrggbb' for user labels that have one.
-   * Returns { id, titleName, title, labels:[{id,name,color}], conditions:[{name,value,full}], actions:[text] }.
+   * Returns { id, titleName, title, labels:[{id,name,color}], conditions:[{name,icon,iconName,value,full}], actions:[text], actionIcons:[symbol], forward, listIcons:[symbol, minus forward] }.
    */
   const cardModel = (filter, labelsById, labelColors, opts) => {
     const maxLen = (opts && opts.maxLen) || 40;
@@ -129,14 +147,14 @@ const Format = (function () {
 
     const conds = [];
     CRITERIA_FIELDS.forEach(([key, name]) => {
-      if (c[key]) conds.push({ name, value: truncate(c[key], maxLen), full: String(c[key]) });
+      if (c[key]) conds.push({ name, icon: COND_ICONS[name], iconName: COND_ICON_NAMES[name], value: truncate(c[key], maxLen), full: String(c[key]) });
     });
-    if (c.hasAttachment) conds.push({ name: 'Has attachment', value: '', full: '' });
+    if (c.hasAttachment) conds.push({ name: 'Has attachment', icon: COND_ICONS['Has attachment'], iconName: COND_ICON_NAMES['Has attachment'], value: '', full: '' });
     if (c.size !== undefined && c.size !== null && c.size !== '') {
       const u = sizeToUnit(c.size);
       const cmp = c.sizeComparison === 'smaller' ? 'smaller' : 'larger';
       const text = `${cmp} than ${u.value} ${unitLabel(u.unit)}`;
-      conds.push({ name: 'Size', value: text, full: text });
+      conds.push({ name: 'Size', icon: COND_ICONS.Size, iconName: COND_ICON_NAMES.Size, value: text, full: text });
     }
 
     const first = conds.find((x) => x.name !== 'Has attachment' && x.name !== 'Size') || conds[0];
@@ -146,23 +164,25 @@ const Format = (function () {
 
     const labels = [];
     const actions = [];
+    const actionIcons = [];
+    const act = (kind, text) => { actions.push(text); actionIcons.push(ACTION_ICONS[kind]); };
     (a.addLabelIds || []).forEach((id) => {
-      if (id === 'STARRED') actions.push('Star it');
-      else if (id === 'IMPORTANT') actions.push('Mark important');
-      else if (id === 'TRASH') actions.push('Delete it');
-      else if (/^CATEGORY_/.test(id)) actions.push(`Categorize as ${labelName(id, labelsById)}`);
+      if (id === 'STARRED') act('star', 'Star it');
+      else if (id === 'IMPORTANT') act('important', 'Mark important');
+      else if (id === 'TRASH') act('trash', 'Delete it');
+      else if (/^CATEGORY_/.test(id)) act('category', `Categorize as ${labelName(id, labelsById)}`);
       else labels.push({ id, name: labelName(id, labelsById), color: safeColor(labelColors && labelColors[id]) });
     });
     (a.removeLabelIds || []).forEach((id) => {
-      if (id === 'INBOX') actions.push('Skip Inbox');
-      else if (id === 'UNREAD') actions.push('Mark as read');
-      else if (id === 'SPAM') actions.push('Never send to Spam');
-      else if (id === 'IMPORTANT') actions.push('Never mark important');
-      else actions.push(`Remove label "${labelName(id, labelsById)}"`);
+      if (id === 'INBOX') act('skipInbox', 'Skip Inbox');
+      else if (id === 'UNREAD') act('read', 'Mark as read');
+      else if (id === 'SPAM') act('noSpam', 'Never send to Spam');
+      else if (id === 'IMPORTANT') act('noImportant', 'Never mark important');
+      else act('removeLabel', `Remove label "${labelName(id, labelsById)}"`);
     });
-    if (a.forward) actions.push(`Forward to ${a.forward}`);
+    if (a.forward) act('forward', `Forward to ${a.forward}`);
 
-    return { id: filter.id, titleName, title, labels, conditions: first ? [first].concat(rest) : [], actions };
+    return { id: filter.id, titleName, title, labels, conditions: first ? [first].concat(rest) : [], actions, actionIcons, forward: a.forward || '', listIcons: actionIcons.filter((_, i) => !(a.forward && actions[i] === `Forward to ${a.forward}`)) };
   };
 
   /** Case-insensitive match against the rendered text the user sees. */

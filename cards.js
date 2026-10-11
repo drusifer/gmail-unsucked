@@ -9,9 +9,10 @@
 // The list is a growing list (Card Service has no scroll event): each "Show more" re-renders
 // with the next batch added. MAX_SHOWN stays under the 100-widget-per-section platform limit.
 const BATCH_SIZE = 10;
+// Card Service allows 100 widgets per section; filters are packed until the next one would not fit.
+const MAX_WIDGETS_PER_SECTION = 100;
 const MAX_SHOWN = 90;
 const ICON_BASE = 'https://www.gstatic.com/images/icons/material/system/1x/';
-const NEUTRAL_DOT = '#757575';
 // Enter-to-search: Card Service has no submit-on-Enter, only the field's change action (a commit, not a
 // per-keystroke filter, by design). Set false to leave only the Search button.
 const SEARCH_ON_COMMIT = true;
@@ -58,25 +59,44 @@ const iconButton_ = (altText, iconName, fn, ctx, extra) => CardService.newImageB
   .setAltText(altText)
   .setOnClickAction(action_(fn, ctx, extra));
 
-/** "● Work   ● Receipts": the dot carries the Gmail label color, the name is always shown too. */
-const labelDots_ = (labels) => labels
-  .map((l) => `<font color="${l.color || NEUTRAL_DOT}">\u25cf</font> ${esc_(l.name)}`)
-  .join('&nbsp;&nbsp;&nbsp;');
+const NEUTRAL_GRAY = '#757575';
 
-/** One filter as one DecoratedText widget: criterion + label dots + short summary + Edit icon. */
-const filterRow_ = (item, here) => {
+/** "🏷️ Work, Receipts": one tag icon, then the label names. No colors (the dots read as confusing). */
+const labelList_ = (labels) => `\ud83c\udff7\ufe0f ${labels.map((l) => esc_(l.name)).join(', ')}`;
+
+/** Hosted grey Material icon as a DecoratedText start icon (an image column, so text wraps beside it). */
+const startIcon_ = (name, alt) => CardService.newIconImage()
+  .setIconUrl(`${ICON_BASE}${name}_grey600_24dp.png`).setAltText(alt);
+
+/**
+ * One filter as a short form of DecoratedText lines, each with a start icon in its own left column and
+ * the value wrapping inside the right column (never under the icon). Every line opens the detail card.
+ * A line of action icons (plain emoji text) appears only when there are any, then a row of
+ * [View details] [Edit] buttons. Returns widgets.
+ */
+const filterRows_ = (item, here) => {
   const m = item.model;
-  const lines = [`<b>${esc_(m.title)}</b>`];
-  if (m.labels.length) lines.push(labelDots_(m.labels));
-  const rest = m.conditions.slice(1).map((c) => (c.value ? `${c.name}: ${c.value}` : c.name)).concat(m.actions);
-  const w = CardService.newDecoratedText()
-    .setText(lines.join('<br>'))
-    .setWrapText(true)
-    .setOnClickAction(action_('onOpenFilter', here, { id: item.id }))
-    .setButton(iconButton_('Edit', 'edit', 'onEditFilter', here, { id: item.id }));
-  if (m.titleName) w.setTopLabel(m.titleName);
-  if (rest.length) w.setBottomLabel(Format.truncate(rest.join(' \u00b7 '), 60));
-  return w;
+  const open = () => action_('onOpenFilter', here, { id: item.id });
+  const line = (iconName, alt, text) => CardService.newDecoratedText()
+    .setStartIcon(startIcon_(iconName, alt)).setText(text).setWrapText(true).setOnClickAction(open());
+  const widgets = [];
+  if (m.conditions.length) {
+    m.conditions.forEach((c, i) => {
+      const value = esc_(c.value || c.name);
+      widgets.push(line(c.iconName || 'filter_list', c.name, i === 0 ? `<b>${value}</b>` : value));
+    });
+  } else {
+    widgets.push(line('filter_list', 'No conditions', esc_(m.title)));
+  }
+  if (m.labels.length) widgets.push(line('label', 'Labels', m.labels.map((l) => esc_(l.name)).join(', ')));
+  if (m.forward) widgets.push(line('arrow_forward', 'Forward to', esc_(m.forward)));
+  if (m.listIcons.length) {
+    widgets.push(CardService.newDecoratedText().setText(m.listIcons.join(' ')).setOnClickAction(open()));
+  }
+  widgets.push(CardService.newButtonSet()
+    .addButton(button_('View details', 'onOpenFilter', here, { id: item.id }))
+    .addButton(button_('Edit', 'onEditFilter', here, { id: item.id })));
+  return widgets;
 };
 
 const friendlyError_ = (err) => {
@@ -112,6 +132,7 @@ const toList_ = (ctx, notificationText) => {
 
 const listCard_ = (ctx) => {
   const section = CardService.newCardSection();
+  const sections = [];
   const batches = Math.max(1, (Number(ctx.page) || 0) + 1);
   const shown = Math.min(batches * BATCH_SIZE, MAX_SHOWN);
   let view;
@@ -143,16 +164,30 @@ const listCard_ = (ctx) => {
       ? `${view.matched} of ${view.totalFilters} filters match "${esc_(ctx.q)}" (showing ${count})`
       : `Showing ${count} of ${view.totalFilters} filters`;
     section.addWidget(para_(`<font color="#757575">${summary}</font>`));
-    view.items.forEach((item) => section.addWidget(filterRow_(item, here)));
+    sections.push(section);
+    let rows = null;
+    let used = 0;
+    view.items.forEach((item) => {
+      const w = filterRows_(item, here);
+      if (rows && used + 1 + w.length > MAX_WIDGETS_PER_SECTION) { sections.push(rows); rows = null; }
+      if (!rows) { rows = CardService.newCardSection(); used = 0; }
+      if (used > 0) { rows.addWidget(CardService.newDivider()); used += 1; }
+      w.forEach((x) => rows.addWidget(x));
+      used += w.length;
+    });
+    if (rows) sections.push(rows);
     if (view.matched > count) {
+      const more = CardService.newCardSection();
       if (count >= MAX_SHOWN) {
-        section.addWidget(para_(`<font color="#757575">Showing the first ${MAX_SHOWN}. Search to narrow the list.</font>`));
+        more.addWidget(para_(`<font color="#757575">Showing the first ${MAX_SHOWN}. Search to narrow the list.</font>`));
       } else {
         const next = Math.min(view.matched, count + BATCH_SIZE) - count;
-        section.addWidget(CardService.newButtonSet()
+        more.addWidget(CardService.newButtonSet()
           .addButton(button_(`Show ${next} more`, 'onShowList', { q: ctx.q, page: batches }, {})));
       }
+      sections.push(more);
     }
+    return card_('Filter Manager', sections);
   }
   return card_('Filter Manager', [section]);
 };
@@ -246,7 +281,7 @@ const formCard_ = (opts) => {
   const chosen = options.labels.find((l) => l.id === form.labelId);
   if (chosen) {
     const bg = chosen.color && chosen.color.backgroundColor;
-    then.addWidget(para_(labelDots_([{ name: chosen.name, color: /^#[0-9a-fA-F]{6}$/.test(bg || '') ? bg : null }])));
+    then.addWidget(para_(labelList_([{ name: chosen.name }])));
   }
   if (options.labels.length === 0) {
     then.addWidget(para_('<font color="#757575">You have no labels yet. Create one in Gmail (Settings > Labels), then reopen this form.</font>'));
@@ -357,9 +392,11 @@ const onOpenFilter = (e) => {
     const m = r.model;
     const sec = CardService.newCardSection();
     m.conditions.forEach((c) => sec.addWidget(CardService.newDecoratedText()
-      .setTopLabel(c.value ? c.name : 'Condition').setText(esc_(c.value ? c.full : c.name)).setWrapText(true)));
-    if (m.labels.length) sec.addWidget(CardService.newDecoratedText().setTopLabel('Labels').setText(labelDots_(m.labels)).setWrapText(true));
-    m.actions.forEach((a) => sec.addWidget(CardService.newDecoratedText().setTopLabel('Action').setText(esc_(a)).setWrapText(true)));
+      .setTopLabel(`${c.icon || ''} ${c.value ? c.name : 'Condition'}`.trim())
+      .setText(c.value ? `<b>${esc_(c.full)}</b>` : `<b>${esc_(c.name)}</b>`).setWrapText(true)));
+    if (m.labels.length) sec.addWidget(CardService.newDecoratedText().setTopLabel('Labels').setText(labelList_(m.labels)).setWrapText(true));
+    m.actions.forEach((a, i) => sec.addWidget(CardService.newDecoratedText()
+      .setTopLabel(`${m.actionIcons[i] || ''} Action`.trim()).setText(`<b>${esc_(a)}</b>`).setWrapText(true)));
     if (!m.conditions.length && !m.labels.length && !m.actions.length) sec.addWidget(para_('This filter has no conditions or actions.'));
     sec.addWidget(CardService.newButtonSet()
       .addButton(button_('Edit', 'onEditFilter', ctx, { id: p.id }, true))

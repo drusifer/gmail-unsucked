@@ -70,19 +70,15 @@ const SelfTest_ = (function () {
           (colored[0] ? ` (e.g. ${colored[0].color.backgroundColor})` : ''));
         return true;
       });
-      // U2/U7 automated: render the real list card and assert on its JSON (no Gmail UI needed).
-      check('render: label dots carry the real label colors; icons are the legible variant', () => {
-        const json = buildHomepage({}).printJson().toLowerCase();
+      // U7 automated: render the real list card and assert on its JSON (no Gmail UI needed).
+      check('render: icons are the legible variant, labels shown as a tag line', () => {
+        const json = buildHomepage({}).printJson();
         const view = svc_().listView({ q: '', page: 0, pageSize: 10 });
-        const missing = [];
-        view.items.forEach((it) => it.model.labels.forEach((l) => {
-          const want = String(l.color || NEUTRAL_DOT).toLowerCase();
-          if (json.indexOf(want) < 0) missing.push(`${l.name} expected ${want}`);
-        }));
-        if (missing.length) return `dot color not rendered: ${missing.join('; ')}`;
         if (json.indexOf('_black_') >= 0) return 'black icon variant rendered (invisible in dark mode)';
         if (view.items.length && json.indexOf('_grey600_') < 0) return 'grey600 icons not rendered';
-        return true;
+        const missing = [];
+        view.items.forEach((it) => it.model.labels.forEach((l) => { if (json.indexOf(l.name) < 0) missing.push(l.name); }));
+        return missing.length ? `label names not rendered: ${missing.join(', ')}` : true;
       });
       // Spike T19b: widgets the UX sprint relies on.
       info('probe: CardService.newImageButton', typeof CardService.newImageButton === 'function' ? 'available' : 'MISSING');

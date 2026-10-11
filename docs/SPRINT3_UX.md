@@ -86,3 +86,27 @@ Supersedes the section-per-filter design in section 4.2 and decisions E1/E4 wher
 - **E4 stands** (growing list, cap 90 filters per card, one "Show more" appends the next batch); with one widget per filter the 100-widget-per-section limit makes the cap 45 filters per section at 2 widgets each (widget + divider), so cap is **45 per section** unless the Divider is dropped. Decision: drop the Divider (DecoratedText already separates visually); cap **90**.
 - Lost versus the earlier plan, accepted: inline expander, three inline buttons per row.
 - U1/U4 acceptance criteria reinterpreted: "card" = one widget row; "expand" = open detail card.
+
+
+## 8. Final design (2026-10-11, user-approved after live iteration)
+
+Supersedes sections 4.2 and 7 where they conflict.
+
+**Final list item:** one `DecoratedText` per field, each with a hosted grey Material icon as the **start icon** (own column, so wrapped text stays beside its icon): condition lines, one tag line (`label` icon, names joined by commas, no colors), a forward-address line (`arrow_forward`) when the filter forwards, an action-icon line of plain emoji (only when there are any), then a `ButtonSet` of **View details** and **Edit**. Dividers separate filters; sections pack by widget count (limit 100). The detail card is unchanged.
+
+**What did not work, and why (do not retry):**
+| Attempt | Result |
+|---|---|
+| Emoji inline in one text block | Wrapped text drops under the emoji and looks detached from its label |
+| `Grid`, 2 columns | Equal-width cells: the icon column takes half the panel; no colors or styling |
+| Per-row `TextButton` emoji chips with `setAltText` | Tooltip behavior unverified; costs a row; rejected as UX |
+| `Columns` / `Column` | **Does not render in the Gmail sidebar** (confirmed live 2026-10-11; docs list only compose/Calendar dialogs, and wrap at <=480 px). Only the DecoratedText below it showed |
+| Font size / family | Not controllable. Card text supports only `<b> <i> <u> <s> <font color> <a> <br>`; size comes from the slot (text vs top/bottom label) |
+| Color dots | Dropped: read as confusing next to the tag line |
+
+**Decisions:**
+- **E13:** all list icons are `_grey600_24dp.png` (#757575): 4.6:1 on white, 3.5:1 on #202124 (WCAG non-text >= 3:1). Black icons measured 1.3:1 on dark and are invisible there.
+- **E14:** icon names come from `format.js` (`COND_ICON_NAMES`); emoji for actions come from `ACTION_ICONS`. Both are pure and unit-tested.
+- **E15:** the forward address is its own line; the action-icon line excludes the forward icon.
+- **E16:** the strict CardService fake learned `IconImage`/`setStartIcon`; `printJson` now serializes widget props so `selfTest` and contract tests can assert on rendered output (icon variant, label names).
+- Detail card still shows full words with top-label symbols; unchanged by this revision.

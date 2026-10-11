@@ -188,3 +188,11 @@ test('cardModel: bad color values are dropped (never injected into HTML)', () =>
   const m = F.cardModel({ id: 'c', criteria: { from: 'a@x.com' }, action: { addLabelIds: ['L'] } }, { L: 'N' }, { L: '"><script>' }, {});
   assert.strictEqual(m.labels[0].color, null);
 });
+
+test('cardModel: conditions and actions carry symbols alongside their words', () => {
+  const m = F.cardModel({ id: 'i', criteria: { from: 'a@x.com', query: 'boot', hasAttachment: true },
+    action: { addLabelIds: ['STARRED'], removeLabelIds: ['INBOX', 'UNREAD'], forward: 'b@x.com' } }, {}, {}, {});
+  assert.deepStrictEqual(m.conditions.map((c) => c.icon), ['\u{1F464}', '\u{1F50D}', '\u{1F4CE}']);
+  assert.strictEqual(m.actionIcons.length, m.actions.length);
+  assert.deepStrictEqual(m.actions, ['Star it', 'Skip Inbox', 'Mark as read', 'Forward to b@x.com']);
+});

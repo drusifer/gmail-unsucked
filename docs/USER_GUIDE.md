@@ -15,17 +15,20 @@ Manage your Gmail filters from the side panel: see them in plain English, search
 In Gmail, click the **Gmail Unsucked** icon (filter symbol) in the right-hand side panel. The first card is your filter list.
 
 ## Your filter list
-Each filter is one row:
+Each filter is a short form: an icon on the left, its value on the right, one line per field.
 
-> **boss@example.com**
-> ● Work &nbsp; ● Receipts
-> *Subject: Quarterly numbers... · Skip Inbox · Forward to me@example.com*
+> 👤 **boss@example.com**
+> ≡ Quarterly numbers
+> 🏷 Work, Receipts
+> → me@example.com
+> ⭐ 👁️ 📤
+> [ View details ] [ Edit ]
 
-- **Top line:** the first condition (From, To, Subject or words), with its name above it.
-- **Labels:** each label the filter applies is shown as a colored dot plus its name. The dot uses the label's Gmail color; labels without a color get a gray dot.
-- **Bottom line:** the other conditions and actions in short form. Long values are cut at 40 characters.
-- **Open a filter:** tap the row for the full values and **Edit**, **Duplicate** and **Delete**.
-- **Quick edit:** the small pencil icon on the row opens the editor directly.
+- **Condition lines:** each set condition has its own grey icon (person = From, people = To, lines = Subject, magnifier = Has words, block = Doesn't have, paperclip = Has attachment, ruler = Size). A long value wraps inside its own column, beside its icon.
+- **Tags:** one line with the label icon and the names of the labels the filter applies. There are no color dots.
+- **Forwarding:** the destination address, with an arrow icon, when the filter forwards.
+- **Action icons:** other actions as plain emoji, shown only when there are any: ⭐ star, ❗ important, 🗑️ delete, 📂 category, 📤 skip inbox, 👁️ mark as read, 🛡️ never spam, 🔕 never important, ➖ remove label. The detail screen spells them out.
+- **Buttons:** **View details** opens the full values with Edit, Duplicate and Delete. **Edit** opens the editor directly. Tapping any line also opens the details.
 - **Order:** A to Z by the first condition.
 - **Longer lists:** the first 10 are shown. Choose **Show more** to add 10 more below them (up to 90; search to narrow beyond that).
 - **Search:** type in the box and press **Enter**, or use the small search icon. It matches the text you see, including label names. The small ✕ clears the search. There is no search-as-you-type: Gmail add-ons cannot do that.

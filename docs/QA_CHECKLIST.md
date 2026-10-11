@@ -22,11 +22,11 @@ Prereqs: `clasp login`, `bobp make push` (pushes to the live script), then Gmail
 - [ ] Nothing relies on color alone (errors begin with the word "Error:").
 
 ## Sprint 3: UX (all live checks verified 2026-10-10)
-- [x] U1/U2: each filter is one row; label dots show Gmail's color (compare with Gmail), gray dot for uncolored; label name always present.
+- [x] U1/U2: each filter is a short form of icon + value lines, a tag line with the label names (no color dots), forward address line, and a [View details] [Edit] row.
 - [x] U3: a filter with a very long subject shows it cut with "..." on the row and in full on the detail card.
 - [x] U4: tapping a row opens the detail card with Edit / Duplicate / Delete; Back returns to the same search and place (C2).
-- [x] U5: New filter shows "More conditions" collapsed; Edit on a filter with Has words/size shows it open; chosen label shows its dot; Edit says what is being edited.
+- [x] U5: New filter shows "More conditions" collapsed; Edit on a filter with Has words/size shows it open; chosen label shows with the tag icon; Edit says what is being edited.
 - [x] U6: with more than 10 filters, "Show more" adds 10 below and keeps earlier rows; Enter in the search box runs the search; the search icon works; the ✕ clears it.
-- [x] U7: row Edit icon and search icons are legible (light AND dark mode) and have a usable tap target.
+- [x] U7: field icons and search icons are legible (light AND dark mode) and have a usable tap target.
 - [x] Run `selfTest`; read the INFO lines (label colors count, newImageButton, newOverflowMenu) and tell Cypher.
 

@@ -70,6 +70,11 @@ const newCardService = () => {
 
   const newDivider = () => make('Divider', {});
 
+  const newIconImage = () => make('IconImage', {
+    setIconUrl: setProp('iconUrl', str('IconImage.setIconUrl')),
+    setAltText: setProp('altText', str('IconImage.setAltText')),
+  });
+
   const newButtonSet = () => make('ButtonSet', {
     addButton: (self, b) => {
       if (!b || !BUTTON_KINDS.includes(b.__kind)) fail('ButtonSet.addButton expects a TextButton or ImageButton');
@@ -104,6 +109,12 @@ const newCardService = () => {
     setText: setProp('text', str('DecoratedText.setText')),
     setWrapText: setProp('wrap', bool('DecoratedText.setWrapText')),
     setTopLabel: setProp('topLabel', str('DecoratedText.setTopLabel')),
+    setStartIcon: (self, ic) => {
+      if (!ic || ic.__kind !== 'IconImage') fail('DecoratedText.setStartIcon expects an IconImage');
+      if (!ic.props.iconUrl) fail('IconImage needs setIconUrl');
+      if (!ic.props.altText) fail('IconImage requires setAltText');
+      self.props.startIcon = ic;
+    },
     setBottomLabel: setProp('bottomLabel', str('DecoratedText.setBottomLabel')),
     setOnClickAction: (self, a) => {
       if (!a || a.__kind !== 'Action') fail('DecoratedText.setOnClickAction expects an Action');
@@ -190,7 +201,7 @@ const newCardService = () => {
 
   return Object.assign({
     newAction, newTextButton, newButtonSet, newTextParagraph, newTextInput, newSelectionInput,
-    newDecoratedText, newImageButton, newDivider, newCardSection, newCardHeader, newCardBuilder, newNotification, newNavigation,
+    newDecoratedText, newImageButton, newDivider, newIconImage, newCardSection, newCardHeader, newCardBuilder, newNotification, newNavigation,
     newActionResponseBuilder,
   }, ENUMS);
 };
